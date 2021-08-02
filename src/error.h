@@ -1,0 +1,1 @@
+enum error_code { SUCCESS = 0 };

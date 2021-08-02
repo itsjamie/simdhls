@@ -1,0 +1,25 @@
+{
+  "name": "simdhls",
+  "version": "1.0.0",
+  "description": "Parse HLS (HTTP Live Streaming) manifests using WASM with SIMD operations.",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm run build && npm run serve",
+    "build": "emcc src/hello.cpp --no-entry -s LLD_REPORT_UNDEFINED --preload-file test -msimd128 --bind -o dist/index.html",
+    "serve": "ws --http2 -d dist -o",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+      "local-web-server": "^4.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evergreenplay/simdhls.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/evergreenplay/simdhls/issues"
+  },
+  "homepage": "https://github.com/evergreenplay/simdhls#readme"
+}
