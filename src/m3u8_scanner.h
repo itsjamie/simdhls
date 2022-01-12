@@ -1,78 +1,42 @@
-#include <wasm_simd128.h>
+#pragma once
 
-#include <cstdint>
-#include <utility>
+#include <wasm_simd128.h>
 
 #include "error.h"
 #include "m3u8_string_scanner.h"
-
-struct m3u8_character_block {
-  static m3u8_character_block classify(const v128_t &in);
-  // ASCII whitespace except newline ('\r', '\t', ' ')
-  uint64_t whitespace() const noexcept;
-  // non-quote structural characters ('#', '\n')
-  uint64_t op() const noexcept;
-  // neither a structural character or whitespace
-  uint64_t scalar() const noexcept;
-
-  uint64_t _whitespace;
-  uint64_t _op;
-};
-
-uint64_t m3u8_character_block::whitespace() const noexcept {
-  return _whitespace;
-}
-uint64_t m3u8_character_block::op() const noexcept { return _op; }
-uint64_t m3u8_character_block::scalar() const noexcept {
-  return ~(op() | whitespace());
-}
-
-// m3u8_character_block m3u8_character_block::classify(const v128_t &in) {
-//   wasm_i8x16_shuffle()
-// }
-
-/**
- * A block of scanned m3u8, with information on attributes
- *
- * Tags begin with '#EXT' and are case-sensitive.
- *
- * Lines that begin with '#' but are not proceeded by 'EXT' can be dropped.
- * They are comments.
- *
- * We look for '#EXT' case-sensitive these lines should be scanned further.
- *
- * A line that does not start with whitespace or # should be parsed as a URI
- * line.
- *
- */
-struct m3u8_block {
- public:
-  m3u8_block(m3u8_string_block &&string, m3u8_character_block characters)
-      : _string(std::move(string)), _characters(characters) {}
-  m3u8_block(m3u8_string_block string, m3u8_character_block characters)
-      : _string(string), _characters(characters) {}
-
-  // string and escape characters
-  m3u8_string_block _string;
-  // whitespace, structural characters, scalars
-  m3u8_character_block _characters;
-};
+#include "m3u8_block.h"
+#include "m3u8_string_block.h"
+#include "m3u8_character_block.h"
 
 class m3u8_scanner {
  public:
   m3u8_scanner() {}
   m3u8_block next(const v128_t &in);
-  // 0 on success, 1 otherwise.
+  // Will either return UNCLOSED_STRING, or SUCCESS.
   error_code finish();
 
  private:
+  // Whether the last character is part of a scalar token.
+  // Anything that isn't whitespace or a structural character.
+  uint64_t prev_scalar = 0ULL;
   m3u8_string_scanner string_scanner{};
 };
+
+// Check if the current character immediately follows a matching character.
+uint64_t follows(const uint64_t match, uint64_t &overflow) {
+  const uint64_t result = match << 1 | overflow;
+  overflow = match >> 63;
+  return result;
+}
 
 m3u8_block m3u8_scanner::next(const v128_t &in) {
   m3u8_string_block strings = string_scanner.next(in);
   m3u8_character_block characters = m3u8_character_block::classify(in);
-  return m3u8_block(strings, characters);
+
+  const uint64_t nonquote_scalar = characters.scalar() & ~strings.quote();
+  uint64_t follows_nonquote_scalar = follows(nonquote_scalar, prev_scalar);
+
+  return m3u8_block(strings, characters, follows_nonquote_scalar);
 }
 
 error_code m3u8_scanner::finish() { return string_scanner.finish(); }

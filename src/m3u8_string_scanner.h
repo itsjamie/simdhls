@@ -1,15 +1,10 @@
-#include <bitmask.h>
-#include <error.h>
+#pragma once
+
 #include <wasm_simd128.h>
 
-struct m3u8_string_block {
-  m3u8_string_block(uint64_t quote, uint64_t in_string)
-      : _quote(quote), _in_string(in_string) {}
-
-  // real quotes that aren't escaped
-  uint64_t _quote;
-  uint64_t _in_string;
-};
+#include "bitmask.h"
+#include "error.h"
+#include "m3u8_string_block.h"
 
 // Scan blocks for string characters
 class m3u8_string_scanner {
@@ -42,4 +37,11 @@ m3u8_string_block m3u8_string_scanner::next(const v128_t &in) {
   prev_in_string = uint64_t(static_cast<int64_t>(in_string) >> 63);
 
   return m3u8_string_block(quote_mask, in_string);
-}
+};
+
+error_code m3u8_string_scanner::finish() {
+  if (prev_in_string) {
+    return UNCLOSED_STRING;
+  }
+  return SUCCESS;
+};

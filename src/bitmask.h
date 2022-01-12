@@ -1,3 +1,5 @@
+#pragma once
+
 #include "wasm_simd128.h"
 
 uint64_t prefix_xor(uint64_t bitmask) {
